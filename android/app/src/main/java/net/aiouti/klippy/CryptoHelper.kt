@@ -1,6 +1,7 @@
 package net.aiouti.klippy
 
 import org.bouncycastle.bcpg.ArmoredOutputStream
+import org.bouncycastle.bcpg.HashAlgorithmTags
 import org.bouncycastle.jce.provider.BouncyCastleProvider
 import org.bouncycastle.openpgp.*
 import org.bouncycastle.openpgp.operator.jcajce.*
@@ -110,23 +111,29 @@ class CryptoHelper(
             keyPairGenerator.initialize(4096)
             val keyPair = keyPairGenerator.generateKeyPair()
 
+            val pgpKeyPair = JcaPGPKeyPair(
+                PGPPublicKey.RSA_GENERAL,
+                keyPair,
+                Date()
+            )
+
             val identity = "Klippy <klippy@aiouti.net>"
+            val sha256Calc = JcaPGPDigestCalculatorProviderBuilder()
+                .setProvider("BC")
+                .build()
+                .get(HashAlgorithmTags.SHA256)
+
             val keyRingGenerator = PGPKeyRingGenerator(
                 PGPSignature.POSITIVE_CERTIFICATION,
-                PGPKeyPair(
-                    PGPPublicKey.RSA_GENERAL,
-                    keyPair,
-                    Date(),
-                    JcaKeyFingerprintCalculator()
-                ),
+                pgpKeyPair,
                 identity,
-                PGPEncryptedData.AES_256,
-                "".toCharArray(),
-                true,
+                sha256Calc,
                 null,
                 null,
-                java.security.SecureRandom(),
-                "BC"
+                JcaPGPContentSignerBuilder(pgpKeyPair.publicKey.algorithm, HashAlgorithmTags.SHA256),
+                JcePBESecretKeyEncryptorBuilder(PGPEncryptedData.AES_256, sha256Calc)
+                    .setProvider("BC")
+                    .build("".toCharArray())
             )
 
             val publicKeyRing = keyRingGenerator.generatePublicKeyRing()
