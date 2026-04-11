@@ -15,7 +15,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:hint="@string/server_url"
-            android:layout_marginBottom="16dp"
+            android:layout_marginBottom="24dp"
             app:boxBackgroundMode="outline">
 
             <com.google.android.material.textfield.TextInputEditText
@@ -26,50 +26,71 @@
 
         </com.google.android.material.textfield.TextInputLayout>
 
-        <com.google.android.material.textfield.TextInputLayout
+        <com.google.android.material.textview.MaterialTextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/private_key"
+            android:textStyle="bold"
+            android:layout_marginBottom="8dp" />
+
+        <com.google.android.material.textview.MaterialTextView
+            android:id="@+id/privateKeyStatus"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/no_key_loaded"
+            android:textColor="?android:attr/textColorSecondary"
+            android:layout_marginBottom="8dp" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/loadPrivateKeyButton"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="@string/private_key"
-            android:layout_marginBottom="16dp"
-            app:boxBackgroundMode="outline">
+            android:text="@string/load_private_key_file"
+            android:layout_marginBottom="24dp"
+            style="@style/Widget.Material3.Button.OutlinedButton" />
 
-            <com.google.android.material.textfield.TextInputEditText
-                android:id="@+id/privateKeyInput"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:inputType="textMultiLine"
-                android:minLines="4"
-                android:maxLines="8"
-                android:fontFamily="monospace"
-                android:textSize="12sp" />
+        <com.google.android.material.textview.MaterialTextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/public_key"
+            android:textStyle="bold"
+            android:layout_marginBottom="8dp" />
 
-        </com.google.android.material.textfield.TextInputLayout>
+        <com.google.android.material.textview.MaterialTextView
+            android:id="@+id/publicKeyStatus"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/no_key_loaded"
+            android:textColor="?android:attr/textColorSecondary"
+            android:layout_marginBottom="8dp" />
 
-        <com.google.android.material.textfield.TextInputLayout
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/loadPublicKeyButton"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="@string/public_key"
-            android:layout_marginBottom="16dp"
-            app:boxBackgroundMode="outline">
+            android:text="@string/load_public_key_file"
+            android:layout_marginBottom="24dp"
+            style="@style/Widget.Material3.Button.OutlinedButton" />
 
-            <com.google.android.material.textfield.TextInputEditText
-                android:id="@+id/publicKeyInput"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:inputType="textMultiLine"
-                android:minLines="4"
-                android:maxLines="8"
-                android:fontFamily="monospace"
-                android:textSize="12sp" />
+        <com.google.android.material.divider.MaterialDivider
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="16dp" />
 
-        </com.google.android.material.textfield.TextInputLayout>
+        <com.google.android.material.textview.MaterialTextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/or_generate_new_keys"
+            android:textStyle="bold"
+            android:layout_marginBottom="8dp" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/generateKeysButton"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="@string/generate_keys"
-            android:layout_marginBottom="16dp"
+            android:layout_marginBottom="24dp"
             style="@style/Widget.Material3.Button.OutlinedButton" />
 
         <com.google.android.material.button.MaterialButton

@@ -30,4 +30,12 @@
     <string name="settings_saved">Settings saved</string>
     <string name="generating">Generating...</string>
     <string name="keys_generated">Keys generated successfully</string>
+    <string name="load_private_key_file">Load Private Key File</string>
+    <string name="load_public_key_file">Load Public Key File</string>
+    <string name="no_key_loaded">No key loaded</string>
+    <string name="key_loaded">Key loaded ✓</string>
+    <string name="private_key_loaded">Private key loaded</string>
+    <string name="public_key_loaded">Public key loaded</string>
+    <string name="error_loading_file">Error loading file</string>
+    <string name="or_generate_new_keys">Or generate new keys</string>
 </resources>
