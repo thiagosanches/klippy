@@ -28,6 +28,20 @@ const MAX_BODY_SIZE = 512 * 1024; // 512 KB
 
 const store = new Store();
 
+// Helper function to get client IP
+function getClientIP(req) {
+  return req.headers['x-forwarded-for']?.split(',')[0].trim() || 
+         req.socket.remoteAddress || 
+         'unknown';
+}
+
+// Helper function to log requests
+function logRequest(req, statusCode) {
+  const timestamp = new Date().toISOString();
+  const ip = getClientIP(req);
+  console.log(`[${timestamp}] ${ip} ${req.method} ${req.url} -> ${statusCode}`);
+}
+
 const server = http.createServer((req, res) => {
   // CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -37,6 +51,7 @@ const server = http.createServer((req, res) => {
   if (req.method === 'OPTIONS') {
     res.writeHead(204);
     res.end();
+    logRequest(req, 204);
     return;
   }
 
@@ -44,6 +59,7 @@ const server = http.createServer((req, res) => {
   if (req.url === '/health' && req.method === 'GET') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ status: 'ok' }));
+    logRequest(req, 200);
     return;
   }
 
@@ -53,9 +69,11 @@ const server = http.createServer((req, res) => {
     if (encrypted) {
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ encrypted }));
+      logRequest(req, 200);
     } else {
       res.writeHead(404, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: 'No clipboard data' }));
+      logRequest(req, 404);
     }
     return;
   }
@@ -70,6 +88,7 @@ const server = http.createServer((req, res) => {
       if (size > MAX_BODY_SIZE) {
         res.writeHead(413, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: 'Payload too large' }));
+        logRequest(req, 413);
         req.destroy();
         return;
       }
@@ -82,15 +101,18 @@ const server = http.createServer((req, res) => {
         if (!data.encrypted || typeof data.encrypted !== 'string') {
           res.writeHead(400, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ error: 'Invalid request: encrypted field required' }));
+          logRequest(req, 400);
           return;
         }
 
         store.set(data.encrypted);
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ success: true }));
+        logRequest(req, 200);
       } catch (err) {
         res.writeHead(400, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: 'Invalid JSON' }));
+        logRequest(req, 400);
       }
     });
 
@@ -100,6 +122,7 @@ const server = http.createServer((req, res) => {
   // 404 for all other routes
   res.writeHead(404, { 'Content-Type': 'application/json' });
   res.end(JSON.stringify({ error: 'Not found' }));
+  logRequest(req, 404);
 });
 
 server.listen(PORT, () => {
