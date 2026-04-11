@@ -1,0 +1,16 @@
+{
+  "name": "klippy-server",
+  "version": "1.0.0",
+  "description": "Encrypted clipboard sharing server",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "test": "node --test test/**/*.test.js"
+  },
+  "keywords": ["clipboard", "pgp", "encryption"],
+  "author": "",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22.0.0"
+  }
+}

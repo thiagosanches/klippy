@@ -1,0 +1,87 @@
+const http = require('node:http');
+const Store = require('./store');
+
+const PORT = process.env.PORT || 3000;
+const MAX_BODY_SIZE = 512 * 1024; // 512 KB
+
+const store = new Store();
+
+const server = http.createServer((req, res) => {
+  // CORS headers
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+  if (req.method === 'OPTIONS') {
+    res.writeHead(204);
+    res.end();
+    return;
+  }
+
+  // Health check
+  if (req.url === '/health' && req.method === 'GET') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ status: 'ok' }));
+    return;
+  }
+
+  // GET /clipboard - retrieve encrypted clipboard data
+  if (req.url === '/clipboard' && req.method === 'GET') {
+    const encrypted = store.get();
+    if (encrypted) {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ encrypted }));
+    } else {
+      res.writeHead(404, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'No clipboard data' }));
+    }
+    return;
+  }
+
+  // POST /clipboard - store encrypted clipboard data
+  if (req.url === '/clipboard' && req.method === 'POST') {
+    let body = '';
+    let size = 0;
+
+    req.on('data', chunk => {
+      size += chunk.length;
+      if (size > MAX_BODY_SIZE) {
+        res.writeHead(413, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Payload too large' }));
+        req.destroy();
+        return;
+      }
+      body += chunk.toString();
+    });
+
+    req.on('end', () => {
+      try {
+        const data = JSON.parse(body);
+        if (!data.encrypted || typeof data.encrypted !== 'string') {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'Invalid request: encrypted field required' }));
+          return;
+        }
+
+        store.set(data.encrypted);
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: true }));
+      } catch (err) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Invalid JSON' }));
+      }
+    });
+
+    return;
+  }
+
+  // 404 for all other routes
+  res.writeHead(404, { 'Content-Type': 'application/json' });
+  res.end(JSON.stringify({ error: 'Not found' }));
+});
+
+server.listen(PORT, () => {
+  console.log(`Klippy server listening on port ${PORT}`);
+});
+
+module.exports = server;
