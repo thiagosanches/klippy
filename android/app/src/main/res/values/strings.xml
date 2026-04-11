@@ -38,4 +38,5 @@
     <string name="public_key_loaded">Public key loaded</string>
     <string name="error_loading_file">Error loading file</string>
     <string name="or_generate_new_keys">Or generate new keys</string>
+    <string name="sharing_text">Sharing to Klippy...</string>
 </resources>

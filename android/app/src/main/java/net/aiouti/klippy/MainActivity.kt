@@ -49,6 +49,32 @@ class MainActivity : AppCompatActivity() {
         fabPull.setOnClickListener { pullClipboard() }
 
         checkInitialSetup()
+        
+        // Handle share intent from other apps
+        handleSharedText(intent)
+    }
+    
+    override fun onNewIntent(intent: Intent?) {
+        super.onNewIntent(intent)
+        intent?.let { handleSharedText(it) }
+    }
+    
+    private fun handleSharedText(intent: Intent) {
+        if (intent.action == Intent.ACTION_SEND && intent.type == "text/plain") {
+            intent.getStringExtra(Intent.EXTRA_TEXT)?.let { sharedText ->
+                // Check if setup is complete
+                if (!::cryptoHelper.isInitialized) {
+                    Toast.makeText(this, R.string.please_configure_settings, Toast.LENGTH_LONG).show()
+                    return
+                }
+                
+                // Show what was shared
+                Toast.makeText(this, getString(R.string.sharing_text), Toast.LENGTH_SHORT).show()
+                
+                // Push the shared text directly
+                pushText(sharedText)
+            }
+        }
     }
 
     override fun onCreateOptionsMenu(menu: Menu?): Boolean {
@@ -96,6 +122,15 @@ class MainActivity : AppCompatActivity() {
         val text = clipData.getItemAt(0).text?.toString()
         if (text.isNullOrEmpty()) {
             Toast.makeText(this, R.string.clipboard_empty, Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        pushText(text)
+    }
+    
+    private fun pushText(text: String) {
+        if (!::cryptoHelper.isInitialized) {
+            Toast.makeText(this, R.string.crypto_not_initialized, Toast.LENGTH_SHORT).show()
             return
         }
 
