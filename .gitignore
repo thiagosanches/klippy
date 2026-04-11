@@ -1,0 +1,38 @@
+# Keys and sensitive data
+*.pgp
+*.asc
+pubring.gpg
+secring.gpg
+trustdb.gpg
+*.key
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Server data
+server/data/*.json
+
+# Android
+*.apk
+*.ap_
+*.dex
+*.class
+bin/
+gen/
+out/
+.gradle/
+build/
+local.properties
+*.iml
+.idea/
+.DS_Store
+captures/
+.externalNativeBuild
+.cxx
+
+# Android keystore
+*.jks
+*.keystore
