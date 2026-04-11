@@ -4,9 +4,18 @@
 
 set -e
 
-# Configuration
-GPG_KEY="klippy@aiouti.net"
-SERVER_URL="${2:-http://localhost:3000}"
+# Get script directory
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+
+# Load .env file if it exists
+if [ -f "$PROJECT_ROOT/.env" ]; then
+  export $(grep -v '^#' "$PROJECT_ROOT/.env" | xargs)
+fi
+
+# Configuration (from .env or defaults)
+GPG_KEY="${GPG_KEY_EMAIL:-klippy@aiouti.net}"
+SERVER_URL="${2:-${SERVER_URL:-http://localhost:3000}}"
 
 # Detect clipboard tool
 if command -v wl-copy &> /dev/null; then

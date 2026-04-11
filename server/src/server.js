@@ -1,7 +1,29 @@
 const http = require('node:http');
+const fs = require('node:fs');
+const path = require('node:path');
 const Store = require('./store');
 
-const PORT = process.env.PORT || 3000;
+// Load .env file if it exists
+function loadEnv() {
+  const envPath = path.join(__dirname, '../../.env');
+  if (fs.existsSync(envPath)) {
+    const envContent = fs.readFileSync(envPath, 'utf8');
+    envContent.split('\n').forEach(line => {
+      line = line.trim();
+      if (line && !line.startsWith('#')) {
+        const [key, ...valueParts] = line.split('=');
+        const value = valueParts.join('=').trim();
+        if (key && value && !process.env[key]) {
+          process.env[key] = value;
+        }
+      }
+    });
+  }
+}
+
+loadEnv();
+
+const PORT = process.env.SERVER_PORT || process.env.PORT || 3000;
 const MAX_BODY_SIZE = 512 * 1024; // 512 KB
 
 const store = new Store();

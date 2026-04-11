@@ -50,6 +50,27 @@ Material Design 3 Android app with PGP encryption.
 
 ## Setup
 
+### 0. Configure Environment (Optional)
+
+Create a `.env` file from the example:
+
+```bash
+cp .env.example .env
+```
+
+Edit `.env` with your settings:
+
+```bash
+# Server Configuration
+SERVER_URL=http://192.168.1.100:3000
+SERVER_PORT=3000
+
+# GPG Key Email
+GPG_KEY_EMAIL=klippy@aiouti.net
+```
+
+This allows you to configure server URL and GPG key email once, instead of passing them as arguments each time.
+
 ### 1. Generate PGP Keys
 
 ```bash
