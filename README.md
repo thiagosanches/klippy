@@ -225,7 +225,7 @@ klippy/
 
 ### Android
 - Android 8.0+ (API 26)
-- Internet permission
+- Internet permission (required by Android for any network access, including local network)
 
 ## License
 
