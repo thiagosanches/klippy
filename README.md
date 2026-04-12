@@ -6,7 +6,6 @@ Secure clipboard sharing across devices on your local network with end-to-end PG
 
 <img width="476" height="139" alt="image" src="https://github.com/user-attachments/assets/1b4620d0-163d-44db-981c-bcd29fddefaf" />
 
-
 ## Features
 
 - **End-to-end encryption**: RSA-4096 PGP encryption - server never sees plaintext
