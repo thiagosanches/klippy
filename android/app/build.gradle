@@ -53,6 +53,7 @@ dependencies {
     implementation 'androidx.security:security-crypto:1.0.0'
     
     // Bouncy Castle for PGP
-    implementation 'org.bouncycastle:bcpg-jdk18on:1.78'
     implementation 'org.bouncycastle:bcprov-jdk18on:1.78'
+    implementation 'org.bouncycastle:bcutil-jdk18on:1.78'
+    implementation 'org.bouncycastle:bcpg-jdk18on:1.78'
 }
