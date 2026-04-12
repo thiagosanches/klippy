@@ -2,27 +2,16 @@ package net.aiouti.klippy
 
 import org.bouncycastle.bcpg.ArmoredOutputStream
 import org.bouncycastle.bcpg.HashAlgorithmTags
-import org.bouncycastle.jce.provider.BouncyCastleProvider
 import org.bouncycastle.openpgp.*
 import org.bouncycastle.openpgp.operator.jcajce.*
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
-import java.security.Security
 import java.util.Date
 
 class CryptoHelper(
     private val privateKeyArmored: String,
     private val publicKeyArmored: String
 ) {
-    init {
-        // Android ships with a limited BouncyCastle provider - replace it with the full one
-        if (Security.getProvider(BouncyCastleProvider.PROVIDER_NAME) == null) {
-            Security.insertProviderAt(BouncyCastleProvider(), 1)
-        } else {
-            Security.removeProvider(BouncyCastleProvider.PROVIDER_NAME)
-            Security.insertProviderAt(BouncyCastleProvider(), 1)
-        }
-    }
 
     fun encrypt(plainText: String): String {
         try {
