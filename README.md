@@ -4,6 +4,8 @@ Secure clipboard sharing across devices on your local network with end-to-end PG
 
 <img width="345" height="767" alt="image" src="https://github.com/user-attachments/assets/532ff771-5bd1-49c0-b608-72628b28e168" />
 
+<img width="476" height="139" alt="image" src="https://github.com/user-attachments/assets/1b4620d0-163d-44db-981c-bcd29fddefaf" />
+
 
 ## Features
 
