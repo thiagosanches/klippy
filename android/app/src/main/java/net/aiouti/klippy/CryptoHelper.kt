@@ -19,35 +19,39 @@ class CryptoHelper(
     }
 
     fun encrypt(plainText: String): String {
-        val publicKey = readPublicKey(publicKeyArmored)
-        val encryptor = PGPEncryptedDataGenerator(
-            JcePGPDataEncryptorBuilder(PGPEncryptedData.AES_256)
-                .setWithIntegrityPacket(true)
-                .setSecureRandom(java.security.SecureRandom())
-                .setProvider("BC")
-        )
+        try {
+            val publicKey = readPublicKey(publicKeyArmored)
+            val encryptor = PGPEncryptedDataGenerator(
+                JcePGPDataEncryptorBuilder(PGPEncryptedData.AES_256)
+                    .setWithIntegrityPacket(true)
+                    .setSecureRandom(java.security.SecureRandom())
+                    .setProvider("BC")
+            )
 
-        encryptor.addMethod(JcePublicKeyKeyEncryptionMethodGenerator(publicKey).setProvider("BC"))
+            encryptor.addMethod(JcePublicKeyKeyEncryptionMethodGenerator(publicKey).setProvider("BC"))
 
-        val outStream = ByteArrayOutputStream()
-        val armoredOut = ArmoredOutputStream(outStream)
-        val encryptedOut = encryptor.open(armoredOut, ByteArray(4096))
+            val outStream = ByteArrayOutputStream()
+            val armoredOut = ArmoredOutputStream(outStream)
+            val encryptedOut = encryptor.open(armoredOut, ByteArray(4096))
 
-        val literalData = PGPLiteralDataGenerator()
-        val literalOut = literalData.open(
-            encryptedOut,
-            PGPLiteralData.BINARY,
-            "",
-            plainText.toByteArray().size.toLong(),
-            Date()
-        )
+            val literalData = PGPLiteralDataGenerator()
+            val literalOut = literalData.open(
+                encryptedOut,
+                PGPLiteralData.BINARY,
+                "",
+                plainText.toByteArray().size.toLong(),
+                Date()
+            )
 
-        literalOut.write(plainText.toByteArray())
-        literalOut.close()
-        encryptedOut.close()
-        armoredOut.close()
+            literalOut.write(plainText.toByteArray())
+            literalOut.close()
+            encryptedOut.close()
+            armoredOut.close()
 
-        return outStream.toString("UTF-8")
+            return outStream.toString("UTF-8")
+        } catch (e: Exception) {
+            throw IllegalStateException("Encryption failed: ${e.message}", e)
+        }
     }
 
     fun decrypt(encryptedArmored: String): String {
@@ -76,11 +80,29 @@ class CryptoHelper(
         val inputStream = PGPUtil.getDecoderStream(ByteArrayInputStream(armoredKey.toByteArray()))
         val keyRingCollection = PGPPublicKeyRingCollection(inputStream, JcaKeyFingerprintCalculator())
         
+        // First try to find a subkey marked for encryption
+        keyRingCollection.keyRings.forEach { keyRing ->
+            keyRing.publicKeys.forEach { key ->
+                if (key.isEncryptionKey && !key.isMasterKey) {
+                    return key
+                }
+            }
+        }
+        
+        // If no encryption subkey found, use the master key if it supports encryption
         keyRingCollection.keyRings.forEach { keyRing ->
             keyRing.publicKeys.forEach { key ->
                 if (key.isEncryptionKey) {
                     return key
                 }
+            }
+        }
+        
+        // Last resort: use the first master key (for self-generated keys)
+        keyRingCollection.keyRings.forEach { keyRing ->
+            val masterKey = keyRing.publicKey
+            if (masterKey != null) {
+                return masterKey
             }
         }
         
@@ -91,18 +113,50 @@ class CryptoHelper(
         val inputStream = PGPUtil.getDecoderStream(ByteArrayInputStream(armoredKey.toByteArray()))
         val keyRingCollection = PGPSecretKeyRingCollection(inputStream, JcaKeyFingerprintCalculator())
         
+        val extractor = JcePBESecretKeyDecryptorBuilder()
+            .setProvider("BC")
+            .build("".toCharArray())
+        
+        // First try to find an encryption subkey
         keyRingCollection.keyRings.forEach { keyRing ->
             keyRing.secretKeys.forEach { secretKey ->
-                if (secretKey.isSigningKey || secretKey.isMasterKey) {
-                    val extractor = JcePBESecretKeyDecryptorBuilder()
-                        .setProvider("BC")
-                        .build("".toCharArray())
-                    return secretKey.extractPrivateKey(extractor)
+                if (secretKey.isSigningKey && !secretKey.isMasterKey) {
+                    try {
+                        return secretKey.extractPrivateKey(extractor)
+                    } catch (e: Exception) {
+                        // Continue to next key
+                    }
                 }
             }
         }
         
-        throw IllegalArgumentException("No private key found")
+        // Try the master key
+        keyRingCollection.keyRings.forEach { keyRing ->
+            keyRing.secretKeys.forEach { secretKey ->
+                if (secretKey.isMasterKey) {
+                    try {
+                        return secretKey.extractPrivateKey(extractor)
+                    } catch (e: Exception) {
+                        // Continue to next key
+                    }
+                }
+            }
+        }
+        
+        // Last resort: try any signing key
+        keyRingCollection.keyRings.forEach { keyRing ->
+            keyRing.secretKeys.forEach { secretKey ->
+                if (secretKey.isSigningKey) {
+                    try {
+                        return secretKey.extractPrivateKey(extractor)
+                    } catch (e: Exception) {
+                        // Continue to next key
+                    }
+                }
+            }
+        }
+        
+        throw IllegalArgumentException("No private key found or failed to extract")
     }
 
     companion object {
