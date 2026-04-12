@@ -15,7 +15,13 @@ class CryptoHelper(
     private val publicKeyArmored: String
 ) {
     init {
-        Security.addProvider(BouncyCastleProvider())
+        // Android ships with a limited BouncyCastle provider - replace it with the full one
+        if (Security.getProvider(BouncyCastleProvider.PROVIDER_NAME) == null) {
+            Security.insertProviderAt(BouncyCastleProvider(), 1)
+        } else {
+            Security.removeProvider(BouncyCastleProvider.PROVIDER_NAME)
+            Security.insertProviderAt(BouncyCastleProvider(), 1)
+        }
     }
 
     fun encrypt(plainText: String): String {
@@ -77,36 +83,41 @@ class CryptoHelper(
     }
 
     private fun readPublicKey(armoredKey: String): PGPPublicKey {
-        val inputStream = PGPUtil.getDecoderStream(ByteArrayInputStream(armoredKey.toByteArray()))
-        val keyRingCollection = PGPPublicKeyRingCollection(inputStream, JcaKeyFingerprintCalculator())
-        
-        // First try to find a subkey marked for encryption
-        keyRingCollection.keyRings.forEach { keyRing ->
-            keyRing.publicKeys.forEach { key ->
-                if (key.isEncryptionKey && !key.isMasterKey) {
-                    return key
+        try {
+            val inputStream = PGPUtil.getDecoderStream(ByteArrayInputStream(armoredKey.toByteArray()))
+            val keyRingCollection = PGPPublicKeyRingCollection(inputStream, JcaKeyFingerprintCalculator())
+            
+            // First try to find a subkey marked for encryption
+            keyRingCollection.keyRings.forEach { keyRing ->
+                keyRing.publicKeys.forEach { key ->
+                    if (key.isEncryptionKey && !key.isMasterKey) {
+                        return key
+                    }
                 }
             }
-        }
-        
-        // If no encryption subkey found, use the master key if it supports encryption
-        keyRingCollection.keyRings.forEach { keyRing ->
-            keyRing.publicKeys.forEach { key ->
-                if (key.isEncryptionKey) {
-                    return key
+            
+            // If no encryption subkey found, use the master key if it supports encryption
+            keyRingCollection.keyRings.forEach { keyRing ->
+                keyRing.publicKeys.forEach { key ->
+                    if (key.isEncryptionKey) {
+                        return key
+                    }
                 }
             }
-        }
-        
-        // Last resort: use the first master key (for self-generated keys)
-        keyRingCollection.keyRings.forEach { keyRing ->
-            val masterKey = keyRing.publicKey
-            if (masterKey != null) {
-                return masterKey
+            
+            // Last resort: use the first master key (for self-generated keys)
+            keyRingCollection.keyRings.forEach { keyRing ->
+                val masterKey = keyRing.publicKey
+                if (masterKey != null) {
+                    return masterKey
+                }
             }
+            
+            throw IllegalArgumentException("No encryption key found in public key")
+        } catch (e: Exception) {
+            e.printStackTrace()
+            throw IllegalArgumentException("Failed to parse public key: ${e.javaClass.simpleName} - ${e.message}", e)
         }
-        
-        throw IllegalArgumentException("No encryption key found in public key")
     }
 
     private fun readPrivateKey(armoredKey: String): PGPPrivateKey {
