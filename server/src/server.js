@@ -82,10 +82,13 @@ const server = http.createServer((req, res) => {
   if (req.url === '/clipboard' && req.method === 'POST') {
     let body = '';
     let size = 0;
+    let responded = false;
 
     req.on('data', chunk => {
+      if (responded) return;
       size += chunk.length;
       if (size > MAX_BODY_SIZE) {
+        responded = true;
         res.writeHead(413, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: 'Payload too large' }));
         logRequest(req, 413);
@@ -96,6 +99,8 @@ const server = http.createServer((req, res) => {
     });
 
     req.on('end', () => {
+      if (responded) return;
+      responded = true;
       try {
         const data = JSON.parse(body);
         if (!data.encrypted || typeof data.encrypted !== 'string') {
