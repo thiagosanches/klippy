@@ -52,7 +52,6 @@ class CryptoHelper(
 
     fun decrypt(encryptedArmored: String): String {
         try {
-            val privateKey = readPrivateKey(privateKeyArmored)
             val inputStream = PGPUtil.getDecoderStream(ByteArrayInputStream(encryptedArmored.toByteArray()))
             val pgpObjectFactory = PGPObjectFactory(inputStream, JcaKeyFingerprintCalculator())
 
@@ -61,14 +60,27 @@ class CryptoHelper(
             val encData = encDataList.iterator().next() as? PGPPublicKeyEncryptedData
                 ?: throw IllegalArgumentException("Expected PGPPublicKeyEncryptedData")
 
+            android.util.Log.d("Klippy", "Packet recipient keyID: ${java.lang.Long.toHexString(encData.keyID).uppercase()}")
+
+            val privateKey = readPrivateKey(privateKeyArmored, encData.keyID)
+            android.util.Log.d("Klippy", "Private key keyID:      ${java.lang.Long.toHexString(privateKey.keyID).uppercase()}")
+
             val decryptor = JcePublicKeyDataDecryptorFactoryBuilder()
                 .setProvider("BC")
                 .build(privateKey)
 
             val clearStream = encData.getDataStream(decryptor)
-            val plainFactory = PGPObjectFactory(clearStream, JcaKeyFingerprintCalculator())
-            val literalData = plainFactory.nextObject() as? PGPLiteralData
-                ?: throw IllegalArgumentException("Expected PGPLiteralData")
+            var plainFactory = PGPObjectFactory(clearStream, JcaKeyFingerprintCalculator())
+
+            // GPG may wrap literal data in a compressed packet
+            var nextObject = plainFactory.nextObject()
+            if (nextObject is PGPCompressedData) {
+                plainFactory = PGPObjectFactory(nextObject.dataStream, JcaKeyFingerprintCalculator())
+                nextObject = plainFactory.nextObject()
+            }
+
+            val literalData = nextObject as? PGPLiteralData
+                ?: throw IllegalArgumentException("Expected PGPLiteralData, got ${nextObject?.javaClass?.simpleName}")
 
             val decryptedBytes = literalData.inputStream.readBytes()
 
@@ -108,7 +120,7 @@ class CryptoHelper(
         }
     }
 
-    private fun readPrivateKey(armoredKey: String): PGPPrivateKey {
+    private fun readPrivateKey(armoredKey: String, keyID: Long? = null): PGPPrivateKey {
         try {
             val inputStream = PGPUtil.getDecoderStream(ByteArrayInputStream(armoredKey.toByteArray()))
             val keyRingCollection = PGPSecretKeyRingCollection(inputStream, JcaKeyFingerprintCalculator())
@@ -116,6 +128,18 @@ class CryptoHelper(
             val extractor = JcePBESecretKeyDecryptorBuilder()
                 .setProvider("BC")
                 .build("".toCharArray())
+
+            // Match by key ID if provided
+            if (keyID != null) {
+                keyRingCollection.keyRings.forEach { keyRing ->
+                    keyRing.secretKeys.forEach { secretKey ->
+                        if (secretKey.keyID == keyID) {
+                            try { return secretKey.extractPrivateKey(extractor) } catch (_: Exception) {}
+                        }
+                    }
+                }
+                throw IllegalArgumentException("No key matching ID ${java.lang.Long.toHexString(keyID).uppercase()} found")
+            }
 
             // Prefer an encryption subkey (non-master, not a signing key)
             keyRingCollection.keyRings.forEach { keyRing ->

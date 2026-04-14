@@ -8,6 +8,7 @@ import android.os.Bundle
 import android.view.Menu
 import android.view.MenuItem
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import com.google.android.material.floatingactionbutton.FloatingActionButton
@@ -155,7 +156,7 @@ class MainActivity : AppCompatActivity() {
                 }
             } catch (e: Exception) {
                 textView.text = getString(R.string.error_occurred)
-                Toast.makeText(this@MainActivity, "${getString(R.string.error)}: ${e.message}", Toast.LENGTH_LONG).show()
+                showErrorDialog(e)
             }
         }
     }
@@ -191,9 +192,25 @@ class MainActivity : AppCompatActivity() {
                 Toast.makeText(this@MainActivity, R.string.pull_success, Toast.LENGTH_SHORT).show()
             } catch (e: Exception) {
                 textView.text = getString(R.string.error_occurred)
-                Toast.makeText(this@MainActivity, "${getString(R.string.error)}: ${e.message}", Toast.LENGTH_LONG).show()
+                showErrorDialog(e)
             }
         }
+    }
+
+    private fun showErrorDialog(e: Exception) {
+        val message = buildString {
+            append(e.message ?: "Unknown error")
+            var cause = e.cause
+            while (cause != null) {
+                append("\n\nCaused by: ${cause.javaClass.simpleName}: ${cause.message}")
+                cause = cause.cause
+            }
+        }
+        AlertDialog.Builder(this)
+            .setTitle("Error")
+            .setMessage(message)
+            .setPositiveButton("OK", null)
+            .show()
     }
 
     override fun onResume() {
