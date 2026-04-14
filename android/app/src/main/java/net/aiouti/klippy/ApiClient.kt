@@ -64,4 +64,19 @@ class ApiClient(private val baseUrl: String) {
         }
     }
 
+    fun healthCheck(): Boolean {
+        val url = URL("$baseUrl/health")
+        val connection = url.openConnection() as HttpURLConnection
+        
+        return try {
+            connection.requestMethod = "GET"
+            connection.connectTimeout = 5000
+            connection.readTimeout = 5000
+            connection.responseCode == 200
+        } catch (e: Exception) {
+            false
+        } finally {
+            connection.disconnect()
+        }
+    }
 }

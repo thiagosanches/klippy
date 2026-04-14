@@ -21,6 +21,11 @@
 -keep class androidx.security.crypto.** { *; }
 
 # Keep data classes and models
+-keepclassmembers class * {
+    @kotlinx.serialization.SerialName <fields>;
+}
+
+# Standard Android rules
 -keepattributes *Annotation*
 -keepattributes Signature
 -keepattributes Exception
