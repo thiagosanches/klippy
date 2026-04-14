@@ -1,17 +1,19 @@
 package net.aiouti.klippy
 
+import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
-import androidx.lifecycle.lifecycleScope
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.textview.MaterialTextView
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.net.URL
+import java.io.BufferedReader
+import java.io.InputStreamReader
 
 class SettingsActivity : AppCompatActivity() {
     private lateinit var keyRepository: KeyRepository
@@ -88,9 +90,10 @@ class SettingsActivity : AppCompatActivity() {
 
     private fun loadKeyFile(uri: Uri, isPrivate: Boolean) {
         try {
-            val content = contentResolver.openInputStream(uri)?.use { stream ->
-                stream.bufferedReader().readText()
-            } ?: throw IllegalStateException("Could not open file")
+            val inputStream = contentResolver.openInputStream(uri)
+            val reader = BufferedReader(InputStreamReader(inputStream))
+            val content = reader.readText()
+            reader.close()
             
             if (isPrivate) {
                 privateKeyContent = content
@@ -118,18 +121,6 @@ class SettingsActivity : AppCompatActivity() {
             return
         }
 
-        // Validate URL format
-        try {
-            val url = URL(serverUrl)
-            if (url.protocol != "http" && url.protocol != "https") {
-                Toast.makeText(this, R.string.invalid_server_url, Toast.LENGTH_SHORT).show()
-                return
-            }
-        } catch (e: Exception) {
-            Toast.makeText(this, R.string.invalid_server_url, Toast.LENGTH_SHORT).show()
-            return
-        }
-
         if (privateKeyContent.isNullOrEmpty() || publicKeyContent.isNullOrEmpty()) {
             Toast.makeText(this, R.string.keys_required, Toast.LENGTH_SHORT).show()
             return
@@ -147,7 +138,7 @@ class SettingsActivity : AppCompatActivity() {
         generateKeysButton.isEnabled = false
         generateKeysButton.text = getString(R.string.generating)
 
-        lifecycleScope.launch {
+        CoroutineScope(Dispatchers.Main).launch {
             try {
                 val keyPair = withContext(Dispatchers.Default) {
                     CryptoHelper.generateKeyPair()

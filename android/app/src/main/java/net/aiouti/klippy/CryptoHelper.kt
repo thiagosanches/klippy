@@ -25,7 +25,6 @@ class CryptoHelper(
 
             encryptor.addMethod(JcePublicKeyKeyEncryptionMethodGenerator(publicKey).setProvider("BC"))
 
-            val plainBytes = plainText.toByteArray(Charsets.UTF_8)
             val outStream = ByteArrayOutputStream()
             val armoredOut = ArmoredOutputStream(outStream)
             val encryptedOut = encryptor.open(armoredOut, ByteArray(4096))
@@ -35,11 +34,11 @@ class CryptoHelper(
                 encryptedOut,
                 PGPLiteralData.BINARY,
                 "",
-                plainBytes.size.toLong(),
+                plainText.toByteArray().size.toLong(),
                 Date()
             )
 
-            literalOut.write(plainBytes)
+            literalOut.write(plainText.toByteArray())
             literalOut.close()
             encryptedOut.close()
             armoredOut.close()
@@ -51,98 +50,117 @@ class CryptoHelper(
     }
 
     fun decrypt(encryptedArmored: String): String {
-        try {
-            val privateKey = readPrivateKey(privateKeyArmored)
-            val inputStream = PGPUtil.getDecoderStream(ByteArrayInputStream(encryptedArmored.toByteArray()))
-            val pgpObjectFactory = PGPObjectFactory(inputStream, JcaKeyFingerprintCalculator())
+        val privateKey = readPrivateKey(privateKeyArmored)
+        val inputStream = PGPUtil.getDecoderStream(ByteArrayInputStream(encryptedArmored.toByteArray()))
+        val pgpObjectFactory = PGPObjectFactory(inputStream, JcaKeyFingerprintCalculator())
 
-            val encDataList = pgpObjectFactory.nextObject() as? PGPEncryptedDataList
-                ?: throw IllegalArgumentException("Expected PGPEncryptedDataList, got unexpected packet type")
-            val encData = encDataList.iterator().next() as? PGPPublicKeyEncryptedData
-                ?: throw IllegalArgumentException("Expected PGPPublicKeyEncryptedData")
+        val encDataList = pgpObjectFactory.nextObject() as PGPEncryptedDataList
+        val encData = encDataList.iterator().next() as PGPPublicKeyEncryptedData
 
-            val decryptor = JcePublicKeyDataDecryptorFactoryBuilder()
-                .setProvider("BC")
-                .build(privateKey)
+        val decryptor = JcePublicKeyDataDecryptorFactoryBuilder()
+            .setProvider("BC")
+            .build(privateKey)
 
-            val clearStream = encData.getDataStream(decryptor)
-            val plainFactory = PGPObjectFactory(clearStream, JcaKeyFingerprintCalculator())
-            val literalData = plainFactory.nextObject() as? PGPLiteralData
-                ?: throw IllegalArgumentException("Expected PGPLiteralData")
+        val clearStream = encData.getDataStream(decryptor)
+        val plainFactory = PGPObjectFactory(clearStream, JcaKeyFingerprintCalculator())
+        val literalData = plainFactory.nextObject() as PGPLiteralData
 
-            val decryptedBytes = literalData.inputStream.readBytes()
+        val decryptedStream = literalData.inputStream
+        val decryptedBytes = decryptedStream.readBytes()
 
-            // Verify message integrity (MDC)
-            if (encData.isIntegrityProtected && !encData.verify()) {
-                throw SecurityException("PGP integrity check failed - message may have been tampered with")
-            }
-
-            return String(decryptedBytes, Charsets.UTF_8)
-        } catch (e: Exception) {
-            throw IllegalStateException("Decryption failed: ${e.message}", e)
-        }
+        return String(decryptedBytes)
     }
 
     private fun readPublicKey(armoredKey: String): PGPPublicKey {
         try {
             val inputStream = PGPUtil.getDecoderStream(ByteArrayInputStream(armoredKey.toByteArray()))
             val keyRingCollection = PGPPublicKeyRingCollection(inputStream, JcaKeyFingerprintCalculator())
-
-            // Prefer an encryption subkey (non-master)
+            
+            // First try to find a subkey marked for encryption
             keyRingCollection.keyRings.forEach { keyRing ->
                 keyRing.publicKeys.forEach { key ->
-                    if (key.isEncryptionKey && !key.isMasterKey) return key
+                    if (key.isEncryptionKey && !key.isMasterKey) {
+                        return key
+                    }
                 }
             }
-
-            // Fall back to master key if it supports encryption
+            
+            // If no encryption subkey found, use the master key if it supports encryption
             keyRingCollection.keyRings.forEach { keyRing ->
                 keyRing.publicKeys.forEach { key ->
-                    if (key.isEncryptionKey) return key
+                    if (key.isEncryptionKey) {
+                        return key
+                    }
                 }
             }
-
-            throw IllegalArgumentException("No encryption key found in public key ring")
+            
+            // Last resort: use the first master key (for self-generated keys)
+            keyRingCollection.keyRings.forEach { keyRing ->
+                val masterKey = keyRing.publicKey
+                if (masterKey != null) {
+                    return masterKey
+                }
+            }
+            
+            throw IllegalArgumentException("No encryption key found in public key")
         } catch (e: Exception) {
+            e.printStackTrace()
             throw IllegalArgumentException("Failed to parse public key: ${e.javaClass.simpleName} - ${e.message}", e)
         }
     }
 
     private fun readPrivateKey(armoredKey: String): PGPPrivateKey {
-        try {
-            val inputStream = PGPUtil.getDecoderStream(ByteArrayInputStream(armoredKey.toByteArray()))
-            val keyRingCollection = PGPSecretKeyRingCollection(inputStream, JcaKeyFingerprintCalculator())
-
-            val extractor = JcePBESecretKeyDecryptorBuilder()
-                .setProvider("BC")
-                .build("".toCharArray())
-
-            // Prefer an encryption subkey (non-master, not a signing key)
-            keyRingCollection.keyRings.forEach { keyRing ->
-                keyRing.secretKeys.forEach { secretKey ->
-                    if (!secretKey.isSigningKey && !secretKey.isMasterKey) {
-                        try { return secretKey.extractPrivateKey(extractor) } catch (_: Exception) {}
+        val inputStream = PGPUtil.getDecoderStream(ByteArrayInputStream(armoredKey.toByteArray()))
+        val keyRingCollection = PGPSecretKeyRingCollection(inputStream, JcaKeyFingerprintCalculator())
+        
+        val extractor = JcePBESecretKeyDecryptorBuilder()
+            .setProvider("BC")
+            .build("".toCharArray())
+        
+        // First try to find an encryption subkey
+        keyRingCollection.keyRings.forEach { keyRing ->
+            keyRing.secretKeys.forEach { secretKey ->
+                if (secretKey.isSigningKey && !secretKey.isMasterKey) {
+                    try {
+                        return secretKey.extractPrivateKey(extractor)
+                    } catch (e: Exception) {
+                        // Continue to next key
                     }
                 }
             }
-
-            // Fall back to master key
-            keyRingCollection.keyRings.forEach { keyRing ->
-                keyRing.secretKeys.forEach { secretKey ->
-                    if (secretKey.isMasterKey) {
-                        try { return secretKey.extractPrivateKey(extractor) } catch (_: Exception) {}
-                    }
-                }
-            }
-
-            throw IllegalArgumentException("No usable private key found in secret key ring")
-        } catch (e: Exception) {
-            throw IllegalArgumentException("Failed to parse private key: ${e.javaClass.simpleName} - ${e.message}", e)
         }
+        
+        // Try the master key
+        keyRingCollection.keyRings.forEach { keyRing ->
+            keyRing.secretKeys.forEach { secretKey ->
+                if (secretKey.isMasterKey) {
+                    try {
+                        return secretKey.extractPrivateKey(extractor)
+                    } catch (e: Exception) {
+                        // Continue to next key
+                    }
+                }
+            }
+        }
+        
+        // Last resort: try any signing key
+        keyRingCollection.keyRings.forEach { keyRing ->
+            keyRing.secretKeys.forEach { secretKey ->
+                if (secretKey.isSigningKey) {
+                    try {
+                        return secretKey.extractPrivateKey(extractor)
+                    } catch (e: Exception) {
+                        // Continue to next key
+                    }
+                }
+            }
+        }
+        
+        throw IllegalArgumentException("No private key found or failed to extract")
     }
 
     companion object {
-        fun generateKeyPair(identity: String = "Klippy User"): Pair<String, String> {
+        fun generateKeyPair(): Pair<String, String> {
             val keyPairGenerator = java.security.KeyPairGenerator.getInstance("RSA", "BC")
             keyPairGenerator.initialize(4096)
             val keyPair = keyPairGenerator.generateKeyPair()
@@ -153,6 +171,7 @@ class CryptoHelper(
                 Date()
             )
 
+            val identity = "Klippy <klippy@aiouti.net>"
             val sha256Calc = JcaPGPDigestCalculatorProviderBuilder()
                 .setProvider("BC")
                 .build()
