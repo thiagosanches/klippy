@@ -7,10 +7,14 @@
     "start": "node src/server.js",
     "test": "node --test test/**/*.test.js"
   },
-  "keywords": ["clipboard", "pgp", "encryption"],
+  "keywords": [
+    "clipboard",
+    "pgp",
+    "encryption"
+  ],
   "author": "",
   "license": "MIT",
   "engines": {
-    "node": ">=22.0.0"
+    "node": ">=24.0.0"
   }
 }

@@ -39,7 +39,7 @@ push_clipboard() {
   fi
   
   echo "Encrypting..."
-  ENCRYPTED=$(echo "$PLAIN_TEXT" | gpg --armor --encrypt --recipient "$GPG_KEY" 2>/dev/null)
+  ENCRYPTED=$(printf '%s' "$PLAIN_TEXT" | gpg --armor --encrypt --recipient "$GPG_KEY" 2>/dev/null)
   
   echo "Sending to server..."
   RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$SERVER_URL/clipboard" \
@@ -82,7 +82,7 @@ pull_clipboard() {
   PLAIN_TEXT=$(echo "$ENCRYPTED" | gpg --decrypt 2>/dev/null)
   
   echo "Writing to clipboard..."
-  echo "$PLAIN_TEXT" | $CLIP_COPY
+  printf '%s' "$PLAIN_TEXT" | $CLIP_COPY
   
   echo "✓ Clipboard pulled successfully"
 }
